@@ -2,7 +2,7 @@ import gymnasium as gym
 import ale_py
 import time
 
-env = gym.make("ALE/Frogger", render_mode = "human")
+env = gym.make("ALE/Frogger-v5", render_mode = "human")
 
 state, _ = env.reset()
 

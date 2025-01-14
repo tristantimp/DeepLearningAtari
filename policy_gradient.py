@@ -10,7 +10,8 @@ import ale_py
 "link to code"
 "https://www.datacamp.com/tutorial/reinforcement-learning-with-gymnasium?dc_referrer=https%3A%2F%2Fwww.google.com%2F"
 
-env = gym.make("ALE/Freeway-v5", obs_type="grayscale",render_mode = "human")
+#env = gym.make("ALE/Freeway-v5", obs_type="grayscale",render_mode = "human")
+env = gym.make("ALE/Freeway-v5", obs_type="grayscale")
 #env = gym.make("CartPole-v1")
 
 
@@ -80,11 +81,11 @@ def update_policy(stepwise_returns, log_prob_actions, optimizer):
     return loss.item()
 
 def main(): 
-    MAX_EPOCHS = 2
+    MAX_EPOCHS = 10
     DISCOUNT_FACTOR = 0.99
     N_TRIALS = 25
     REWARD_THRESHOLD = 475
-    PRINT_INTERVAL = 10
+    PRINT_INTERVAL = 1
     INPUT_DIM = env.observation_space.shape[0]*env.observation_space.shape[1]
     print(f"Input dim: {INPUT_DIM}")
     HIDDEN_DIM = 128
@@ -99,7 +100,7 @@ def main():
         episode_return, stepwise_returns, log_prob_actions = forward_pass(env, policy, DISCOUNT_FACTOR)
         _ = update_policy(stepwise_returns, log_prob_actions, optimizer)
         episode_returns.append(episode_return)
-        print(episode_returns)
+        #print(episode_returns)
         mean_episode_return = np.mean(episode_returns[-N_TRIALS:])
         if episode % PRINT_INTERVAL == 0:
             print(f'| Episode: {episode:3} | Mean Rewards: {mean_episode_return:5.1f} |')

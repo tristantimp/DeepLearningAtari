@@ -1,2 +1,2 @@
 # Deep Learning Project: Reinforcement Learning with Atari Games
-install dependencies with "pip install requirements.txt"
+install dependencies with "pip install -r requirements.txt"

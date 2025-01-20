@@ -77,7 +77,7 @@ def train_a2c(env, model, optimizer, num_steps=5, gamma=0.99):
     for _ in range(num_steps):
         # Forward pass
         action_probs, value = model(state)
-        action = torch.argmax(action_probs, dim=-1).item()
+        action = torch.multinomial(action_probs, 1).item()
 
         # Step in the environment
         next_state, reward, done, _, _ = env.step(action)
@@ -105,6 +105,7 @@ def train_a2c(env, model, optimizer, num_steps=5, gamma=0.99):
 
     advantage = returns - values.detach()
     actor_loss = -(log_probs * advantage).mean()
+    returns = returns.view(-1, 1)
     critic_loss = F.mse_loss(values, returns)
     loss = actor_loss + critic_loss
 
@@ -131,23 +132,28 @@ def main():
     for episode in range(1000):
         state, _ = env.reset()
         state = preprocess_state(state)
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0) #adds batch dimension
 
         episode_reward = 0
         done = False
-
+        count = 0
         while not done:
+            # this always runs 2048 times. I am assuming that is when time runs out in the game
+            count+=1
             action_probs, _ = model(state)
-            action = torch.argmax(action_probs, dim=-1).item()
-
-
+            #pick action with highest probability (greedy)
+            #action = torch.argmax(action_probs, dim=-1).item()
+            action = torch.multinomial(action_probs, 1).item()
             next_state, reward, done, _, _ = env.step(action)
+            # if reward > 0.0:
+            #     print(f'Performed action {action} got reward {reward}')
+            # if reward < 0.0:
+            #     print(f'Performed action {action} got reward {reward}')
             next_state = preprocess_state(next_state)
             next_state = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
 
             episode_reward += reward
             state = next_state
-
         episode_rewards.append(episode_reward)
 
         # Train the model every 5 episodes
@@ -156,6 +162,7 @@ def main():
 
         # Print average reward every 10 episodes
         if episode % 10 == 0:
+
             avg_reward = np.mean(episode_rewards)
             print(f"Episode {episode}, Average Reward: {avg_reward:.2f}")
 

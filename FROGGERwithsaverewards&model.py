@@ -20,13 +20,6 @@ import os
 matplotlib.use('TkAgg')  # needed for visualization apparently
 
 
-def calculate_shaped_reward(env, current_position, previous_position, reached_goal):
-    progress_reward = 0.1 if current_position > previous_position else -0.1
-    if current_position == previous_position:
-        progress_reward -= 0.05
-    goal_reward = 1.0 if reached_goal else 0.0
-    total_reward = progress_reward + goal_reward
-    return total_reward
 
 
 def visualize_state(state):
@@ -51,21 +44,6 @@ def preprocess_state(state):
     resized_state = cv2.resize(state, (128, 128)) / 255.0  # Resize and normalize
     return torch.tensor(resized_state, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Add batch and channel dimension
 
-
-class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.buffer = deque(maxlen=capacity)
-
-    def add(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
-
-    def sample(self, batch_size):
-        indices = np.random.choice(len(self.buffer), batch_size, replace=False)
-        states, actions, rewards, next_states, dones = zip(*[self.buffer[idx] for idx in indices])
-        return states, actions, rewards, next_states, dones
-
-    def __len__(self):
-        return len(self.buffer)
 
 
 class A2CModel(nn.Module):
@@ -114,32 +92,37 @@ def compute_returns(rewards, dones, gamma):
     for r, done in zip(reversed(rewards), reversed(dones)):
         G = r + gamma * G * (1 - done)
         returns.insert(0, G)
-    return returns
+    return torch.tensor(returns, dtype=torch.float32)
 
-
-def train_a2c(env, model, optimizer, replay_buffer, batch_size=64, num_steps=10, gamma=0.99):
-    states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
-
+# Compute discounted returns
+def train_a2c(model, optimizer, states, actions, rewards, dones, gamma=0.99):
     states = torch.cat(states)
     actions = torch.tensor(actions, dtype=torch.long)
-    rewards = torch.tensor(rewards, dtype=torch.float32)
-    next_states = torch.cat(next_states)
     dones = torch.tensor(dones, dtype=torch.float32)
 
+    # Forward pass
     action_probs, values = model(states)
-    next_action_probs, next_values = model(next_states)
 
-    returns = rewards + gamma * next_values.squeeze() * (1 - dones)
+    # Compute returns and advantages
+    returns = compute_returns(rewards, dones, gamma)
     advantage = returns - values.squeeze()
 
+    # Actor loss
     log_probs = torch.log(action_probs.gather(1, actions.unsqueeze(1)).squeeze())
+    # entropy_bonus = -torch.sum(action_probs * torch.log(action_probs + 1e-8), dim=-1).mean()- 0.1 * entropy_bonus
     actor_loss = -(log_probs * advantage.detach()).mean()
+
+    # Critic loss
     critic_loss = F.mse_loss(values.squeeze(), returns.detach())
 
+    # Total loss
     loss = actor_loss + critic_loss
+
+    # Backpropagation
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+
     print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}, Total Loss: {loss.item():.4f}")
 
 
@@ -187,9 +170,8 @@ def main():
     env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4))
     num_actions = env.action_space.n
     input_shape = (1, 128, 128)
-
     model = A2CModel(input_shape, num_actions)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, amsgrad=True)
 
     # Prompt user to choose whether to load a checkpoint or start fresh
     start_fresh = input("Do you want to start training from scratch? (y/n): ").lower() == 'y'
@@ -201,7 +183,7 @@ def main():
     # Load or initialize reward tracking
     reward_history = load_rewards()
     episode_rewards = deque(maxlen=100)
-    replay_buffer = ReplayBuffer()
+
 
     episode = len(reward_history) * 5  # Adjust episode count based on reward history
     try:
@@ -212,25 +194,29 @@ def main():
             done = False
             action_count = 0
             count_per_action = [0] * num_actions
-
+            episode_states = []
+            episode_actions = []
+            episode_rewards_list = []
+            episode_dones = []
             while not done:
                 action_probs, _ = model(state)
                 action = torch.multinomial(action_probs, 1).item()
+
                 count_per_action[action] += 1
                 action_count += 1
 
                 next_state, reward, done, _, _ = env.step(action)
                 next_state = preprocess_state(next_state)
-                replay_buffer.add(state, action, reward, next_state, done)
                 episode_reward += reward
                 state = next_state
-
+                episode_states.append(state)
+                episode_actions.append(action)
+                episode_rewards_list.append(reward)
+                episode_dones.append(done)
             print(f"Summary episode {episode}, main loop")
             print_action_dist(action_count, count_per_action, num_actions)
             episode_rewards.append(episode_reward)
-
-            if episode % 5 == 0 and len(replay_buffer) >= 64:
-                train_a2c(env, model, optimizer, replay_buffer)
+            train_a2c(model, optimizer, episode_states, episode_actions, episode_rewards_list, episode_dones)
 
             if episode % 50 == 0:
                 save_checkpoint(model, optimizer, filename="a2c_checkpoint.pth")
@@ -239,14 +225,14 @@ def main():
             if (episode + 1) % 5 == 0:
                 avg_reward = np.mean(list(episode_rewards)[-5:])
                 reward_history.append(avg_reward)
-                save_rewards(reward_history)
+                save_rewards(reward_history,filename="reward_history_amsGrad_greedy.json")
                 print(f"Episode {episode}, Average Reward (last 5): {avg_reward:.2f}")
 
             episode += 1
     except KeyboardInterrupt:
         print("Training interrupted. Saving final checkpoint and reward history...")
         save_checkpoint(model, optimizer, filename="a2c_checkpoint.pth")
-        save_rewards(reward_history)
+        save_rewards(reward_history, filename="reward_history_amsGrad_greedy.json" )
         env.close()
 
 if __name__ == "__main__":

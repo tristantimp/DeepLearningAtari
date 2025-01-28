@@ -171,7 +171,7 @@ def main():
     num_actions = env.action_space.n
     input_shape = (1, 128, 128)
     model = A2CModel(input_shape, num_actions)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, amsgrad=True)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     # Prompt user to choose whether to load a checkpoint or start fresh
     start_fresh = input("Do you want to start training from scratch? (y/n): ").lower() == 'y'
@@ -225,14 +225,14 @@ def main():
             if (episode + 1) % 5 == 0:
                 avg_reward = np.mean(list(episode_rewards)[-5:])
                 reward_history.append(avg_reward)
-                save_rewards(reward_history,filename="reward_history_amsGrad_greedy.json")
+                save_rewards(reward_history)
                 print(f"Episode {episode}, Average Reward (last 5): {avg_reward:.2f}")
 
             episode += 1
     except KeyboardInterrupt:
         print("Training interrupted. Saving final checkpoint and reward history...")
         save_checkpoint(model, optimizer, filename="a2c_checkpoint.pth")
-        save_rewards(reward_history, filename="reward_history_amsGrad_greedy.json" )
+        save_rewards(reward_history )
         env.close()
 
 if __name__ == "__main__":

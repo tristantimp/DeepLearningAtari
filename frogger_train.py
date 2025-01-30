@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 28 01:09:09 2025
-
-@author: Gebruiker
-"""
-
 import gymnasium as gym
 import numpy as np
 import torch
@@ -18,9 +11,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import os
 matplotlib.use('TkAgg')  # needed for visualization apparently
-
-
-
 
 def visualize_state(state):
     if isinstance(state, torch.Tensor):

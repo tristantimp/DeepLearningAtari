@@ -157,8 +157,10 @@ def load_rewards(filename="reward_history.json"):
         return []
 
 def main():
-    # 2. Initialize environment with human rendering
-    env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4), render_mode="human")
+    # Choose which environment to initialize with human rendering or without
+    #env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4), render_mode="human")
+    env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4))
+
     num_actions = env.action_space.n
     input_shape = (1, 128, 128)
     model = A2CModel(input_shape, num_actions).to(device)  # Move model to device

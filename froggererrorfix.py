@@ -1,17 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 28 23:56:57 2025
-
-@author: Gebruiker
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 28 15:06:54 2025
-
-@author: Gebruiker
-"""
-
 import gymnasium as gym
 import numpy as np
 import torch
@@ -24,9 +10,8 @@ from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib
 import os
-import json  # Import for saving/loading progress
-
-matplotlib.use('TkAgg')  # Needed for visualization apparently
+import json 
+matplotlib.use('TkAgg')  # Needed for visualization 
 
 # 1. Set device (GPU if available, else CPU)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

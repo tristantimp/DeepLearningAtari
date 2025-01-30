@@ -159,7 +159,7 @@ def load_rewards(filename="reward_history.json"):
 def main():
     # Choose which environment to initialize with human rendering or without
     #env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4), render_mode="human")
-    env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4))
+    env = gym.make("ALE/Frogger-v5", obs_type='grayscale', frameskip=(1, 4), render_mode="rgb_array")
 
     num_actions = env.action_space.n
     input_shape = (1, 128, 128)
